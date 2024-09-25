@@ -1,9 +1,8 @@
 library(lars)
-library(penalized)
 library(grpreg)
 
 ###Simulation3
-set.seed(42)
+set.seed(1005)
 #######matrix X and Z
 n=500
 d=4
@@ -41,19 +40,17 @@ loc1=matrix(0,nrow=200,ncol=4)           #m=0, d=1
 loc2=matrix(0,nrow=200,ncol=4)           #m=0, d=4
 loc3=matrix(0,nrow=200,ncol=4)           #m=5, d=1
 loc4=matrix(0,nrow=200,ncol=4)           #m=5, d=4
-#loc5=matrix(0,nrow=200,ncol=4)           #m=10, d=1
-#loc6=matrix(0,nrow=200,ncol=4)           #m=10, d=4
-signal=0.5*(x>=0.2*n)-1*(x>=0.4*n)+1*(x>=0.7*n)-0.5*(x>=0.9*n)
+signal=1*(x>=0.2*n)-2*(x>=0.4*n)+2*(x>=0.7*n)-1*(x>=0.9*n)
 wave=cos(2*pi*x/n)+sin(2*pi*x/n)+cos(2*pi*2*x/n)+sin(2*pi*2*x/n)
 for (i in 1:200){
-  e1=rnorm(n,mean=0,sd=0.15)     
-  e2=rnorm(n,mean=0,sd=0.15) 
-  e3=rnorm(n,mean=0,sd=0.15)     
-  e4=rnorm(n,mean=0,sd=0.15)   
-  y1=signal+e1+sample(c(-0.15,0.15),size=1,replace=TRUE)*wave 
-  y2=signal+e2+sample(c(-0.15,0.15),size=1,replace=TRUE)*wave
-  y3=signal+e3+sample(c(-0.15,0.15),size=1,replace=TRUE)*wave  
-  y4=signal+e4+sample(c(-0.15,0.15),size=1,replace=TRUE)*wave  
+  e1=rnorm(n,mean=0,sd=0.3)     
+  e2=rnorm(n,mean=0,sd=0.3) 
+  e3=rnorm(n,mean=0,sd=0.3)     
+  e4=rnorm(n,mean=0,sd=0.3)   
+  y1=signal+e1+sample(c(-0.3,0.3),size=1,replace=TRUE)*wave 
+  y2=signal+e2+sample(c(-0.3,0.3),size=1,replace=TRUE)*wave
+  y3=signal+e3+sample(c(-0.3,0.3),size=1,replace=TRUE)*wave  
+  y4=signal+e4+sample(c(-0.3,0.3),size=1,replace=TRUE)*wave  
   y0=NULL
   for (j in 1:n)
     y0<-c(y0,c(y1[j],y2[j],y3[j],y4[j]))
@@ -100,20 +97,20 @@ loc1=matrix(0,nrow=200,ncol=4)           #m=0, d=1
 loc2=matrix(0,nrow=200,ncol=4)           #m=0, d=4
 loc3=matrix(0,nrow=200,ncol=4)           #m=5, d=1
 loc4=matrix(0,nrow=200,ncol=4)           #m=5, d=4
-signal=0.5*(x>=0.2*n)-1*(x>=0.4*n)+1*(x>=0.7*n)-0.5*(x>=0.9*n)
+signal=1*(x>=0.2*n)-2*(x>=0.4*n)+2*(x>=0.7*n)-1*(x>=0.9*n)
 for (i in 1:200){
-  e1=rnorm(n,mean=0,sd=0.15)     
-  e2=rnorm(n,mean=0,sd=0.15) 
-  e3=rnorm(n,mean=0,sd=0.15)     
-  e4=rnorm(n,mean=0,sd=0.15)   
+  e1=rnorm(n,mean=0,sd=0.3)     
+  e2=rnorm(n,mean=0,sd=0.3) 
+  e3=rnorm(n,mean=0,sd=0.3)     
+  e4=rnorm(n,mean=0,sd=0.3)   
   wave1=sin(2*pi*x/96+runif(1, min = 0, max = 2*pi))+2*sin(2*pi*x/240+runif(1, min = 0, max = 2*pi)) 
   wave2=sin(2*pi*x/96+runif(1, min = 0, max = 2*pi))+2*sin(2*pi*x/240+runif(1, min = 0, max = 2*pi)) 
   wave3=sin(2*pi*x/96+runif(1, min = 0, max = 2*pi))+2*sin(2*pi*x/240+runif(1, min = 0, max = 2*pi)) 
   wave4=sin(2*pi*x/96+runif(1, min = 0, max = 2*pi))+2*sin(2*pi*x/240+runif(1, min = 0, max = 2*pi)) 
-  y1=signal+e1+0.1*wave1
-  y2=signal+e2+0.1*wave1
-  y3=signal+e3+0.1*wave1
-  y4=signal+e4+0.1*wave1
+  y1=signal+e1+0.2*wave1
+  y2=signal+e2+0.2*wave1
+  y3=signal+e3+0.2*wave1
+  y4=signal+e4+0.2*wave1
   y0=NULL
   for (j in 1:n)
     y0<-c(y0,c(y1[j],y2[j],y3[j],y4[j]))
@@ -180,10 +177,10 @@ for(i in 1:100000){
   }
   sTrue[i]=sqrt(2*log(log(n)))*max(sT)-2*log(log(n))-0.5*log(log(log(n)))+0.5*log(4*pi)         #test statistic for d=1
 }
-q=quantile(True,prob=0.98)                              #d=4                  
-sq=quantile(sTrue,prob=0.98)                            #d=1
-#q=6.250643
-#sq=5.315731
+q=quantile(True,prob=0.95)                              #d=4                  
+sq=quantile(sTrue,prob=0.95)                            #d=1
+#q=4.581187
+#sq=3.869114
 
 ######data generating for power
 power0=matrix(0,nrow=200,ncol=6)       #for d=4 
@@ -194,13 +191,13 @@ spower1=matrix(0,nrow=200,ncol=6)
 spower2=matrix(0,nrow=200,ncol=6)
 prob=matrix(0,nrow=200,ncol=6)
 sprob=matrix(0,nrow=200,ncol=6)
-beta=c(0,0.01,0.02,0.03,0.04,0.05)
-signal=0.5*(x>=0.2*n)-1*(x>=0.4*n)+1*(x>=0.7*n)-0.5*(x>=0.9*n)
+beta=c(0,0.02,0.04,0.06,0.08,0.10)
+signal=1*(x>=0.2*n)-2*(x>=0.4*n)+2*(x>=0.7*n)-1*(x>=0.9*n)
 for(i in 1:200){        
-  e1=rnorm(n,mean=0,sd=0.15)     
-  e2=rnorm(n,mean=0,sd=0.15) 
-  e3=rnorm(n,mean=0,sd=0.15)     
-  e4=rnorm(n,mean=0,sd=0.15)   
+  e1=rnorm(n,mean=0,sd=0.3)     
+  e2=rnorm(n,mean=0,sd=0.3) 
+  e3=rnorm(n,mean=0,sd=0.3)     
+  e4=rnorm(n,mean=0,sd=0.3)   
   wave1=sin(2*pi*x/96+runif(1, min = 0, max = 2*pi))+2*sin(2*pi*x/240+runif(1, min = 0, max = 2*pi)) 
   wave2=sin(2*pi*x/96+runif(1, min = 0, max = 2*pi))+2*sin(2*pi*x/240+runif(1, min = 0, max = 2*pi)) 
   wave3=sin(2*pi*x/96+runif(1, min = 0, max = 2*pi))+2*sin(2*pi*x/240+runif(1, min = 0, max = 2*pi)) 
@@ -224,28 +221,28 @@ for(i in 1:200){
     r4=lm(y14~x1[,c(0.2*n,0.4*n,0.7*n,0.9*n)])$residuals
     #Fourier transform
     fft1=NULL
-    for(j in 1:n/2){
+    for(j in 1:(n/2)){
       a=sqrt(2/n)*sum(cos(2*pi*j*(1:n)/n)*r1)
       b=sqrt(2/n)*sum(sin(2*pi*j*(1:n)/n)*r1)
       fft1=c(fft1, a, b)
     }
     v1=var(fft1[floor(n/4):n])        #sigma^2
     fft2=NULL
-    for(j in 1:n/2){
+    for(j in 1:(n/2)){
       a=sqrt(2/n)*sum(cos(2*pi*j*(1:n)/n)*r2)
       b=sqrt(2/n)*sum(sin(2*pi*j*(1:n)/n)*r2)
       fft2=c(fft2, a, b)
     }
     v2=var(fft2[floor(n/4):n])        #sigma^2
     fft3=NULL
-    for(j in 1:n/2){
+    for(j in 1:(n/2)){
       a=sqrt(2/n)*sum(cos(2*pi*j*(1:n)/n)*r3)
       b=sqrt(2/n)*sum(sin(2*pi*j*(1:n)/n)*r3)
       fft3=c(fft3, a, b)
     }
     v3=var(fft3[floor(n/4):n])        #sigma^2
     fft4=NULL
-    for(j in 1:n/2){
+    for(j in 1:(n/2)){
       a=sqrt(2/n)*sum(cos(2*pi*j*(1:n)/n)*r4)
       b=sqrt(2/n)*sum(sin(2*pi*j*(1:n)/n)*r4)
       fft4=c(fft4, a, b)
@@ -291,28 +288,28 @@ for(i in 1:200){
     }
     #Fourier transform
     fft1=NULL
-    for(j in 1:n/2){
+    for(j in 1:(n/2)){
       a=sqrt(2/n)*sum(cos(2*pi*j*(1:n)/n)*r1)
       b=sqrt(2/n)*sum(sin(2*pi*j*(1:n)/n)*r1)
       fft1=c(fft1, a, b)
     }
     v1=var(fft1[floor(n/4):n])        #sigma^2
     fft2=NULL
-    for(j in 1:n/2){
+    for(j in 1:(n/2)){
       a=sqrt(2/n)*sum(cos(2*pi*j*(1:n)/n)*r2)
       b=sqrt(2/n)*sum(sin(2*pi*j*(1:n)/n)*r2)
       fft2=c(fft2, a, b)
     }
     v2=var(fft2[floor(n/4):n])        #sigma^2
     fft3=NULL
-    for(j in 1:n/2){
+    for(j in 1:(n/2)){
       a=sqrt(2/n)*sum(cos(2*pi*j*(1:n)/n)*r3)
       b=sqrt(2/n)*sum(sin(2*pi*j*(1:n)/n)*r3)
       fft3=c(fft3, a, b)
     }
     v3=var(fft3[floor(n/4):n])        #sigma^2
     fft4=NULL
-    for(j in 1:n/2){
+    for(j in 1:(n/2)){
       a=sqrt(2/n)*sum(cos(2*pi*j*(1:n)/n)*r4)
       b=sqrt(2/n)*sum(sin(2*pi*j*(1:n)/n)*r4)
       fft4=c(fft4, a, b)
@@ -332,7 +329,7 @@ for(i in 1:200){
       r1=lm(y11~x1[,(which(smodel1$entry>0)[-sub]+1)])$residuals
     #Fourier transform
     fft1=NULL
-    for(j in 1:n/2){
+    for(j in 1:(n/2)){
       a=sqrt(2/n)*sum(cos(2*pi*j*(1:n)/n)*r1)
       b=sqrt(2/n)*sum(sin(2*pi*j*(1:n)/n)*r1)
       fft1=c(fft1, a, b)
@@ -373,28 +370,28 @@ for(i in 1:200){
     prob[i,k]=sum((b<453)*(b>447))
     #Fourier transform
     fft1=NULL
-    for(j in 1:n/2){
+    for(j in 1:(n/2)){
       a=sqrt(2/n)*sum(cos(2*pi*j*(1:n)/n)*r1)
       b=sqrt(2/n)*sum(sin(2*pi*j*(1:n)/n)*r1)
       fft1=c(fft1, a, b)
     }
     v1=var(fft1[floor(n/4):n])        #sigma^2
     fft2=NULL
-    for(j in 1:n/2){
+    for(j in 1:(n/2)){
       a=sqrt(2/n)*sum(cos(2*pi*j*(1:n)/n)*r2)
       b=sqrt(2/n)*sum(sin(2*pi*j*(1:n)/n)*r2)
       fft2=c(fft2, a, b)
     }
     v2=var(fft2[floor(n/4):n])        #sigma^2
     fft3=NULL
-    for(j in 1:n/2){
+    for(j in 1:(n/2)){
       a=sqrt(2/n)*sum(cos(2*pi*j*(1:n)/n)*r3)
       b=sqrt(2/n)*sum(sin(2*pi*j*(1:n)/n)*r3)
       fft3=c(fft3, a, b)
     }
     v3=var(fft3[floor(n/4):n])        #sigma^2
     fft4=NULL
-    for(j in 1:n/2){
+    for(j in 1:(n/2)){
       a=sqrt(2/n)*sum(cos(2*pi*j*(1:n)/n)*r4)
       b=sqrt(2/n)*sum(sin(2*pi*j*(1:n)/n)*r4)
       fft4=c(fft4, a, b)
@@ -415,7 +412,7 @@ for(i in 1:200){
     sprob[i,k]=sum((which(smodel2$entry>0)<453)*(which(smodel2$entry>0)>447))
     #Fourier transform
     fft1=NULL
-    for(j in 1:n/2){
+    for(j in 1:(n/2)){
       a=sqrt(2/n)*sum(cos(2*pi*j*(1:n)/n)*r1)
       b=sqrt(2/n)*sum(sin(2*pi*j*(1:n)/n)*r1)
       fft1=c(fft1, a, b)

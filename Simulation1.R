@@ -1,26 +1,14 @@
 library(lars)
-library(penalized)
-
 
 ###Simulation1
-######null distribution n=500
+######true null distribution
 set.seed(9)
-n=500   
-True=1:100000
-for(i in 1:100000){
-  e=rnorm(n,mean=0,sd=1)     
-  T=NULL
-  for(m in 1:n){
-    t=(2*m)^(-0.5)*sum((e[1:m])^2-1)
-    T=c(T,t)
-  }
-  True[i]=sqrt(2*log(log(n)))*max(T)-2*log(log(n))-0.5*log(log(log(n)))+0.5*log(4*pi)         #test statistic
-}
+True=-log(-log(runif(100000, min=0, max=1)))
 q=quantile(True,prob=0.95)
 ######data generating
 n=500
 x=1:n
-signal=0.5*(x>=0.3*n)-1*(x>=0.4*n)+1*(x>=0.8*n)-0.5*(x>=0.9*n)
+signal=1*(x>=0.3*n)-2*(x>=0.4*n)+2*(x>=0.8*n)-1*(x>=0.9*n)
 #matrix X
 x1=matrix(1,nrow=n,ncol=n)
 for(i in 1:(n-1))
@@ -32,9 +20,9 @@ prob=1:500          #probability cotaining 450 for s=5
 power0=matrix(0,nrow=500,ncol=5)
 power1=matrix(0,nrow=500,ncol=5)
 power2=matrix(0,nrow=500,ncol=5)
-beta=c(0.01,0.02,0.03,0.04,0.05)
+beta=c(0.025,0.05,0.075,0.10,0.125)
 for(i in 1:500){        
-  e=rnorm(n,mean=0,sd=0.15)     
+  e=rnorm(n,mean=0,sd=0.5)     
   fi=runif(1, min = 0, max = 2*pi)
   thi=runif(1, min = 0, max = 2*pi)
   wave=sin(2*pi*x/96+fi)+2*sin(2*pi*x/240+thi) 
@@ -43,7 +31,7 @@ for(i in 1:500){
   r0=lm(y0~x1[,c(0.3*n,0.4*n,0.8*n,0.9*n)])$residuals
   #Fourier transform
   fft0=NULL
-  for(j in 1:n/2){
+  for(j in 1:(n/2)){
     a=sqrt(2/n)*sum(cos(2*pi*j*(1:n)/n)*r0)
     b=sqrt(2/n)*sum(sin(2*pi*j*(1:n)/n)*r0)
     fft0=c(fft0, a, b)
@@ -61,7 +49,7 @@ for(i in 1:500){
     r=lm(y1~x1[,c(0.3*n,0.4*n,0.8*n,0.9*n)])$residuals
     #Fourier transform
     fft=NULL
-    for(j in 1:n/2){
+    for(j in 1:(n/2)){
       a=sqrt(2/n)*sum(cos(2*pi*j*(1:n)/n)*r)
       b=sqrt(2/n)*sum(sin(2*pi*j*(1:n)/n)*r)
       fft=c(fft, a, b)
@@ -84,7 +72,7 @@ for(i in 1:500){
     r1=lm(y0~x1[,(which(model1$entry>0)[-sub]+1)])$residuals
   #Fourier transform
   fft1=NULL
-  for(j in 1:n/2){
+  for(j in 1:(n/2)){
     a=sqrt(2/n)*sum(cos(2*pi*j*(1:n)/n)*r1)
     b=sqrt(2/n)*sum(sin(2*pi*j*(1:n)/n)*r1)
     fft1=c(fft1, a, b)
@@ -107,7 +95,7 @@ for(i in 1:500){
       r=lm(y1~x1[,(which(model$entry>0)[-sub]+1)])$residuals
     #Fourier transform
     fft=NULL
-    for(j in 1:n/2){
+    for(j in 1:(n/2)){
       a=sqrt(2/n)*sum(cos(2*pi*j*(1:n)/n)*r)
       b=sqrt(2/n)*sum(sin(2*pi*j*(1:n)/n)*r)
       fft=c(fft, a, b)
@@ -131,7 +119,7 @@ for(i in 1:500){
   prob[i]=sum((which(model2$entry>0)<453)*(which(model2$entry>0)>447))
   #Fourier transform
   fft2=NULL
-  for(j in 1:n/2){
+  for(j in 1:(n/2)){
     a=sqrt(2/n)*sum(cos(2*pi*j*(1:n)/n)*r2)
     b=sqrt(2/n)*sum(sin(2*pi*j*(1:n)/n)*r2)
     fft2=c(fft2, a, b)
@@ -154,7 +142,7 @@ for(i in 1:500){
       r=lm(y1~x1[,(which(model$entry>0)[-sub]+1)])$residuals
     #Fourier transform
     fft=NULL
-    for(j in 1:n/2){
+    for(j in 1:(n/2)){
       a=sqrt(2/n)*sum(cos(2*pi*j*(1:n)/n)*r)
       b=sqrt(2/n)*sum(sin(2*pi*j*(1:n)/n)*r)
       fft=c(fft, a, b)
@@ -170,12 +158,12 @@ for(i in 1:500){
 }
 
 par(mfrow=c(2,3))
-plot(quantile(True,probs=(1:99)/100),quantile(TT0,probs=(1:99)/100), xlab="Theoritical Quantiles", ylab="Sample Quantiles",main="Oracle")
-lines(quantile(True,probs=(1:99)/100),quantile(True,probs=(1:99)/100),lwd=2)
-plot(quantile(True,probs=(1:99)/100),quantile(TT1,probs=(1:99)/100),xlab="Theoritical Quantiles", ylab="Sample Quantiles",main="Overestimate")
-lines(quantile(True,probs=(1:99)/100),quantile(True,probs=(1:99)/100),lwd=2)
-plot(quantile(True,probs=(1:99)/100),quantile(TT2,probs=(1:99)/100),xlab="Theoritical Quantiles", ylab="Sample Quantiles",main="Underestimate")
-lines(quantile(True,probs=(1:99)/100),quantile(True,probs=(1:99)/100),lwd=2)
+plot(quantile(True,probs=(1:199)/200),quantile(TT0,probs=(1:199)/200),ylim=c(-5,5),xlab="Theoritical Quantiles", ylab="Sample Quantiles",main="Oracle")
+lines(quantile(True,probs=(1:199)/200),quantile(True,probs=(1:199)/200),lwd=2)
+plot(quantile(True,probs=(1:199)/200),quantile(TT1,probs=(1:199)/200),ylim=c(-5,5),xlab="Theoritical Quantiles", ylab="Sample Quantiles",main="Overestimate")
+lines(quantile(True,probs=(1:199)/200),quantile(True,probs=(1:199)/200),lwd=2)
+plot(quantile(True,probs=(1:199)/200),quantile(TT2,probs=(1:199)/200),xlab="Theoritical Quantiles", ylab="Sample Quantiles",main="Underestimate")
+lines(quantile(True,probs=(1:199)/200),quantile(True,probs=(1:199)/200),lwd=2)
 plot(x=c(0,beta),y=c(sum(TT0>q)/500, mean(power0[,1]), mean(power0[,2]), mean(power0[,3]), mean(power0[,4]), mean(power0[,5])), 
      xlab="theta",ylab="power",ylim=c(0,1),main="Oracle", type="b")
 plot(x=c(0,beta),y=c(sum(TT1>q)/500, mean(power1[,1]), mean(power1[,2]), mean(power1[,3]), mean(power1[,4]), mean(power1[,5])), 
@@ -183,10 +171,9 @@ plot(x=c(0,beta),y=c(sum(TT1>q)/500, mean(power1[,1]), mean(power1[,2]), mean(po
 plot(x=c(0,beta),y=c(sum(TT2>q)/500, mean(power2[,1]), mean(power2[,2]), mean(power2[,3]), mean(power2[,4]), mean(power2[,5])), 
      xlab="theta",ylab="power",ylim=c(0,1),main="Underestimate", type="b")
 
-sum(TT0>q)
-sum(TT1>q)
-sum(TT2>q)
+rbind(c(sum(TT0>q)/500, mean(power0[,1]), mean(power0[,2]), mean(power0[,3]), mean(power0[,4]), mean(power0[,5])),
+      c(sum(TT1>q)/500, mean(power1[,1]), mean(power1[,2]), mean(power1[,3]), mean(power1[,4]), mean(power1[,5])),
+      c(sum(TT2>q)/500, mean(power2[,1]), mean(power2[,2]), mean(power2[,3]), mean(power2[,4]), mean(power2[,5])))
+
 sum(prob>0)/500
 q
-
-

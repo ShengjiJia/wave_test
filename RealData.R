@@ -1,12 +1,11 @@
 library(lars)
-library(penalized)
 library(grpreg)
 library(imputeTS)
 library(cumSeg)
-library(DNAcopy)
+library(DNAcopy)    #download from https://bioconductor.org/packages/release/bioc/html/DNAcopy.html
 
 ####real data 
-CGHdata <- read.csv("C:/Users/Acer/Desktop/My Document/Documents/Research/Projects/change points(wave test)/CGHdataset.csv",header=T)
+CGHdata <- read.csv("C:/Users/PC/Desktop/我的文档/Research/Projects/change points(wave test)/CGHdataset.csv")
 index=c(11, 19, 45, 56)
 data=CGHdata[2:2301,(1+3*index)]               
 n=nrow(data)
@@ -42,14 +41,13 @@ num1[2]=jumpoints(y1,k=66,output="2")$n.psi
 ######LB
 model1<-lars(x1[,2:n], y =y1, type ="lasso", normalize = FALSE, intercept = TRUE, trace = FALSE, max.steps=66)   
 n3=which.min(log(model1$RSS/n) + log(n)*model1$df*2*log(log(n))/n)                 
-model11<-lars(x1[,2:n], y =y1, type ="lasso", normalize = FALSE, intercept = TRUE, trace = FALSE, max.steps=n3)
-num1[3]=n3-sum(diff(sort(abs(unlist(model11$actions))))<=2)              #delete adjacent estimators
+num1[3]=n3-sum(diff(sort(abs(unlist(model1$actions)[1:n3])))<=2)       #delete adjacent estimators
 ######adaptive Neyman test 
 sub=which(diff(sort(abs(unlist(model1$actions))))<2)
 r1=lm(y1~x1[,which(model1$entry>0)[-sub]+1])$residuals 
 #Adaptive Neyman test
 fft1=NULL
-for(j in 1:n/2){
+for(j in 1:(n/2)){
   a=sqrt(2/n)*sum(cos(2*pi*j*(1:n)/n)*r1)
   b=sqrt(2/n)*sum(sin(2*pi*j*(1:n)/n)*r1)
   fft1=c(fft1, a, b)
@@ -81,9 +79,8 @@ for(i in 1:(n-1)){
 }
 model2<-lars(RRX1,y=yy1,type="lasso", normalize = FALSE, intercept = FALSE, trace = FALSE, max.steps=66)
 n4=which.min(log(model2$RSS/n) + log(n)*model2$df*2*log(log(n))/n)                
-model22=lars(RRX1,y=yy1,type="lasso", normalize = FALSE, intercept = FALSE, trace = FALSE, max.steps=n4)
-sub=which(diff(sort(abs(unlist(model22$actions))))<=2)
-loc1=sort(abs(unlist(model22$actions)))[-sub]
+sub=which(diff(sort(abs(unlist(model2$actions)[1:n4])))<=2)
+loc1=sort(abs(unlist(model2$actions)[1:n4]))[-sub]
 num1[4]=length(loc1)
 
 #####2nd sequence  
@@ -97,14 +94,13 @@ num2[2]=jumpoints(y2,k=66,output="2")$n.psi
 ######LB
 model1<-lars(x1[,2:n], y =y2, type ="lasso", normalize = FALSE, intercept = TRUE, trace = FALSE, max.steps=66)   
 n3=which.min(log(model1$RSS/n) + log(n)*model1$df*2*log(log(n))/n)
-model11<-lars(x1[,2:n], y =y2, type ="lasso", normalize = FALSE, intercept = TRUE, trace = FALSE, max.steps=n3)
-num2[3]=n3-sum(diff(sort(abs(unlist(model11$actions))))<=2)
+num2[3]=n3-sum(diff(sort(abs(unlist(model1$actions)[1:n3])))<=2)
 ######adaptive Neyman test 
 sub=which(diff(sort(abs(unlist(model1$actions))))<2)
 r1=lm(y2~x1[,which(model1$entry>0)[-sub]+1])$residuals 
 #Adaptive Neyman test
 fft1=NULL
-for(j in 1:n/2){
+for(j in 1:(n/2)){
   a=sqrt(2/n)*sum(cos(2*pi*j*(1:n)/n)*r1)
   b=sqrt(2/n)*sum(sin(2*pi*j*(1:n)/n)*r1)
   fft1=c(fft1, a, b)
@@ -136,9 +132,8 @@ for(i in 1:(n-1)){
 }
 model2<-lars(RRX1,y=yy2,type="lasso", normalize = FALSE, intercept = FALSE, trace = FALSE, max.steps=66)
 n4=which.min(log(model2$RSS/n) + log(n)*model2$df*2*log(log(n))/n)
-model22<-lars(RRX1,y=yy2,type="lasso", normalize = FALSE, intercept = FALSE, trace = FALSE, max.steps=n4)
-sub=which(diff(sort(abs(unlist(model22$actions))))<=2)
-loc2=sort(abs(unlist(model22$actions)))[-sub]
+sub=which(diff(sort(abs(unlist(model2$actions)[1:n4])))<=2)
+loc2=sort(abs(unlist(model2$actions)[1:n4]))[-sub]
 num2[4]=length(loc2)
 
 #####3nd sequence  
@@ -152,14 +147,13 @@ num3[2]=jumpoints(y3,k=66,output="2")$n.psi
 ######LB
 model1<-lars(x1[,2:n], y =y3, type ="lasso", normalize = FALSE, intercept = TRUE, trace = FALSE, max.steps=66)   
 n3=which.min(log(model1$RSS/n) + log(n)*model1$df*2*log(log(n))/n)
-model11<-lars(x1[,2:n], y =y3, type ="lasso", normalize = FALSE, intercept = TRUE, trace = FALSE, max.steps=n3)   
-num3[3]=n3-sum(diff(sort(abs(unlist(model11$actions))))<=2)
+num3[3]=n3-sum(diff(sort(abs(unlist(model1$actions)[1:n3])))<=2)
 ######adaptive Neyman test 
 sub=which(diff(sort(abs(unlist(model1$actions))))<2)
 r1=lm(y3~x1[,which(model1$entry>0)[-sub]+1])$residuals 
 #Adaptive Neyman test
 fft1=NULL
-for(j in 1:n/2){
+for(j in 1:(n/2)){
   a=sqrt(2/n)*sum(cos(2*pi*j*(1:n)/n)*r1)
   b=sqrt(2/n)*sum(sin(2*pi*j*(1:n)/n)*r1)
   fft1=c(fft1, a, b)
@@ -191,9 +185,8 @@ for(i in 1:(n-1)){
 }
 model2<-lars(RRX1,y=yy3,type="lasso", normalize = FALSE, intercept = FALSE, trace = FALSE, max.steps=66)
 n4=which.min(log(model2$RSS/n) + log(n)*model2$df*2*log(log(n))/n)
-model22<-lars(RRX1,y=yy3,type="lasso", normalize = FALSE, intercept = FALSE, trace = FALSE, max.steps=n4)
-sub=which(diff(sort(abs(unlist(model22$actions))))<=2)
-loc3=sort(abs(unlist(model22$actions)))[-sub]
+sub=which(diff(sort(abs(unlist(model2$actions)[1:n4])))<=2)
+loc3=sort(abs(unlist(model2$actions)[1:n4]))[-sub]
 num3[4]=length(loc3)
 
 #####4nd sequence  
@@ -206,15 +199,14 @@ num4[1]=length(CBS$output[,4])-1
 num4[2]=jumpoints(y4,k=66,output="2")$n.psi
 ######LB
 model1<-lars(x1[,2:n], y =y4, type ="lasso", normalize = FALSE, intercept = TRUE, trace = FALSE, max.steps=66)   
-n3=which.min(log(model1$RSS/n) + log(n)*model1$df*2*log(log(n))/n)
-model11<-lars(x1[,2:n], y =y4, type ="lasso", normalize = FALSE, intercept = TRUE, trace = FALSE, max.steps=n3)   
-num4[3]=n3-sum(diff(sort(abs(unlist(model11$actions))))<=2)
+n3=which.min(log(model1$RSS/n) + log(n)*model1$df*2*log(log(n))/n)   
+num4[3]=n3-sum(diff(sort(abs(unlist(model1$actions)[1:n3])))<=2)
 ######adaptive Neyman test 
 sub=which(diff(sort(abs(unlist(model1$actions))))<2)
 r1=lm(y4~x1[,which(model1$entry>0)[-sub]+1])$residuals 
 #Adaptive Neyman test
 fft1=NULL
-for(j in 1:n/2){
+for(j in 1:(n/2)){
   a=sqrt(2/n)*sum(cos(2*pi*j*(1:n)/n)*r1)
   b=sqrt(2/n)*sum(sin(2*pi*j*(1:n)/n)*r1)
   fft1=c(fft1, a, b)
@@ -246,9 +238,8 @@ for(i in 1:(n-1)){
 }
 model2<-lars(RRX1,y=yy4,type="lasso", normalize = FALSE, intercept = FALSE, trace = FALSE, max.steps=66)
 n4=which.min(log(model2$RSS/n) + log(n)*model2$df*2*log(log(n))/n)
-model22<-lars(RRX1,y=yy4,type="lasso", normalize = FALSE, intercept = FALSE, trace = FALSE, max.steps=n4)
-sub=which(diff(sort(abs(unlist(model22$actions))))<=2)
-loc4=sort(abs(unlist(model22$actions)))[-sub]
+sub=which(diff(sort(abs(unlist(model2$actions)[1:n4])))<=2)
+loc4=sort(abs(unlist(model2$actions)[1:n4]))[-sub]
 num4[4]=length(loc4)
 
 
@@ -284,4 +275,3 @@ abline(v=loc, lty=2)
 plot(y4, x=1:n, xlab="locations", ylab="Log 2 ratio", main="X2259-1",pch=20,col=8)
 lines(lm(y4~0+zz[,1:(1+2*m4)]+x1[,(loc4+1)])$fitted.values,x=1:n,col=2)
 abline(v=loc, lty=2)
-
