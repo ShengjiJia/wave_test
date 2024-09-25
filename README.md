@@ -18,4 +18,4 @@ Data
 
 'CGHdataset' is the bladder tumor aCGH data used in 'RealData.R' file.
 
-'SNPdata' is the SNP data used in 'RealDataSupp.R' file.
+'SNPdata.7z' is the SNP data used in 'RealDataSupp.R' file.
