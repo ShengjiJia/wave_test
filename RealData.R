@@ -5,273 +5,272 @@ library(cumSeg)
 library(DNAcopy)    #download from https://bioconductor.org/packages/release/bioc/html/DNAcopy.html
 
 ####real data 
-CGHdata <- read.csv("C:/Users/PC/Desktop/我的文档/Research/Projects/change points(wave test)/CGHdataset.csv")
-index=c(11, 19, 45, 56)
-data=CGHdata[2:2301,(1+3*index)]               
-n=nrow(data)
-d=ncol(data)
-x=1:n
-for (i in 1:d){
-  data[,i]=na_ma(data[,i],k=5,weighting="linear")        #imputation
-} 
+SNPdata <- read.delim("C:/Users/PC/Desktop/我的文档/Research/Projects/change points(wave test)/SNPdata.txt") 
 
-####matrix X_1 and Z
-x1=matrix(1,nrow=n,ncol=n)
-for(i in 1:(n-1))
-  x1[i,(i+1):n]=0                
-zz=matrix(1,nrow=n,ncol=21)                     
-for (i in 1:10){
-  zz[,(2*i)]=cos(2*pi*i*x/n)
-  zz[,(2*i+1)]=sin(2*pi*i*x/n)             
+#################################define some functions
+estimateSigma<-function (Y, h = 10) {  
+  n = length(Y)
+  YBar = rep(0, n)
+  for (i in 1:n) {
+    a = min(n, i + h)
+    b = max(1, i - h)
+    YBar[i] = mean(Y[b:a])
+  }
+  return(sqrt(var(Y - YBar) * (2 * h + 1)/(2 * h)))
 }
-X=kronecker(x1,diag(1, d))                          #with intercept term
-group=NULL
-for (i in 1:n)
-  group<-c(group,rep(i-1,d))                        #with intercept term
 
-#####1st sequence  
-y1=data[,1]
-num1=1:4
+localDiagnostic<-function (y, h) { 
+  yy = c(rep(0, h - 1), y, rep(0, h))
+  n = length(y)
+  z = rep(0, n)
+  for(i in 1:n){
+    z[i]=sum(yy[i:(h+i-1)])/h-sum(yy[(h+i):(2*h-1+i)])/h
+  }
+  return(z)
+}
+
+localMax<-function (y, span = 5) {  
+  if (length(y) < span * 2 + 1) 
+    return(NULL)
+  n = length(y)
+  index = NULL
+  for (i in (span + 1):(n - span)) {
+    if (y[i] == max(y[(i - span):(i + span)])) 
+      index = c(index, i)
+  }
+  return(index)
+}
+
+MultiScan<-function(y, h=20){
+  m=dim(y)[1]
+  n=dim(y)[2]
+  s=matrix(0,nr=m,nc=n)
+  sigma=1:m
+  for (i in 1:m){
+    sigma[i]=estimateSigma(y[i,], h = max(3, 2*floor(log(n))))
+    s[i,]=(localDiagnostic(y[i,],h=h))^2*h/(2*sigma[i])
+  }
+  S=apply(s,2,sum)
+  index=localMax(S,span=2*h)
+  return(data.frame(S[index],index))
+}
+
+threshold<-function(y, alpha=0.05, h=20) {
+  m=dim(y)[1]
+  n=dim(y)[2]
+  empirical=NULL
+  for (k in 1:100) {
+    Y=matrix(rnorm(n*m),nr=m)
+    s=matrix(0,nr=m,nc=n)
+    for (i in 1:m){ s[i,]=(localDiagnostic(Y[i,],h=h))^2*h/2 }
+    S=apply(s,2,sum)
+    index=localMax(S,span=2*h)
+    empirical=c(empirical, S[index])
+  }
+  return(quantile(empirical, probs=1-alpha))
+}
+
+screening<-function(x, y, h=10){       #local linear smoothing (rightlimit-leftlimit)
+  n=length(x)
+  xx=1:(n+2*h)
+  yy=c(rep(y[1],h),y,rep(y[n],h))       #create data outside the boundaries
+  right=rep(0,n)     #rightlimit for xx[1:n]
+  left=rep(0,n)       #leftlimit for xx[(1+2*h):(n+2*h)]
+  for (i in 1:n){
+    model=locpoly(xx[i:(i+2*h)],yy[i:(i+2*h)],kernel="epanech",bandwidth=h,gridsize=1+2*h)
+    right[i]=model$y[1]
+    left[i]=model$y[1+2*h]
+  }
+  L=c(rep(0,h),right[(2*h+2):n]-left[1:(n-2*h-1)],rep(0,h+1))
+  return(L)
+}
+
+####Chro 21
+y=rbind(SNPdata$X99HI0697A.Log.R.Ratio[which(SNPdata$Chr==21)],
+        SNPdata$X99HI0698C.Log.R.Ratio[which(SNPdata$Chr==21)],
+        SNPdata$X99HI0700A.Log.R.Ratio[which(SNPdata$Chr==21)]) 
+n=ncol(y)
+d=nrow(y)
+x=1:n
+y[which(abs(y)>1.5)]=NA     #delete outliers
+for (i in 1:d) {y[i,]=na_ma(y[i,],k=5,weighting="linear")}        #imputation
+h=10
+num1=1:4        
+yy=rbind(SNPdata$X99HI0697A.Log.R.Ratio[which(SNPdata$Chr==22)],
+         SNPdata$X99HI0698C.Log.R.Ratio[which(SNPdata$Chr==22)],
+         SNPdata$X99HI0700A.Log.R.Ratio[which(SNPdata$Chr==22)])     
+rm(SNPdata)
 #####CBS
 set.seed(2)
-CBS=DNAcopy::segment(CNA(y1, rep(1,n), 1:n))                
-num1[1]=length(CBS$output[,4])-1
-######cumSeg
-num1[2]=jumpoints(y1,k=66,output="2")$n.psi
-######LB
-model1<-lars(x1[,2:n], y =y1, type ="lasso", normalize = FALSE, intercept = TRUE, trace = FALSE, max.steps=66)   
-n3=which.min(log(model1$RSS/n) + log(n)*model1$df*2*log(log(n))/n)                 
-num1[3]=n3-sum(diff(sort(abs(unlist(model1$actions)[1:n3])))<=2)       #delete adjacent estimators
+CBS=DNAcopy::segment(CNA(t(y), chrom=rep(1,n), maploc=1:n))
+estimate1=sort(unique(CBS$output[,4]))
+estimate1=estimate1[-length(estimate1)]                
+num1[1]=length(estimate1)
+######SaRa
+sara=MultiScan(y,h=10)
+thres=threshold(y,alpha=0.1,h=10)
+estimate2=sara$index[which(sara$S.index.>thres)]
+num1[2]=length(estimate2)
+######group Lasso
+y0=as.vector(y)
+x1=matrix(1,nrow=n,ncol=n)
+for(i in 1:(n-1))
+  x1[i,(i+1):n]=0            
+X=kronecker(x1,diag(1, d))                          #contain intercept
+group=NULL
+for (i in 1:n)
+  group<-c(group,rep(i-1,d))                        #contain intercept    
+model1=grpreg(X=X[,2:length(y0)], y=y0, group=group[2:length(y0)], penalty="grLasso",family="gaussian", gmax=10)  
+loss=NULL    #residual sum of squares
+for(i in 1:length(model1$lambda)){
+  loss=c(loss, sum(residuals(model1, lambda=model1$lambda[i])^2))
+}
+opt=which.min(log(loss/length(y0)) + log(length(y0))*model1$df*0.4*log(log(length(y0)))/length(y0))    
+estimate3=as.vector((which(model1$beta[,opt]!=0)[d*(1:(length(which(model1$beta[,opt]!=0))/d))]/d-1)[-1])     
+if(length(which(diff(estimate3)<5))>0){estimate33=estimate3[-which(diff(estimate3)<5)]} else{estimate33=estimate3}        
+num1[3]=length(estimate33)
+rm(model1)
+#######partial penalized with m=5
+z=matrix(1,nrow=n,ncol=11)                     
+for (i in 1:5){
+  z[,(2*i)]=cos(2*pi*i*x/n)
+  z[,(2*i+1)]=sin(2*pi*i*x/n)             
+}
+Z=kronecker(z[,2:11],diag(1, d))
+X=cbind(X,Z)
+group=c(group, rep(0,(10*d)))
+model1<-grpreg(X=X[,-1], y=y0, group=group[-1], penalty="grLasso",family="gaussian", gmax=10)
+loss=NULL    #residual sum of squares
+for(i in 1:length(model1$lambda)){
+  loss=c(loss, sum(residuals(model1, lambda=model1$lambda[i])^2))
+}
+opt=which.min(log(loss/length(y0)) + log(length(y0))*model1$df*0.4*log(log(length(y0)))/length(y0))    
+estimate4=as.vector((which(model1$beta[1:(d*n),opt]!=0)[d*(1:(length(which(model1$beta[1:(d*n),opt]!=0))/d))]/d-1)[-1])     
+if(length(which(diff(estimate4)<5))>0){estimate44=estimate4[-which(diff(estimate4)<5)]} else{estimate44=estimate4}        
+num1[4]=length(estimate44)
+rm(model1)
 ######adaptive Neyman test 
-sub=which(diff(sort(abs(unlist(model1$actions))))<2)
-r1=lm(y1~x1[,which(model1$entry>0)[-sub]+1])$residuals 
-#Adaptive Neyman test
+r1=lm(y[1,]~x1[,(estimate3+1)])$residuals
+r2=lm(y[2,]~x1[,(estimate3+1)])$residuals
+r3=lm(y[3,]~x1[,(estimate3+1)])$residuals
+#Fourier transform
 fft1=NULL
-for(j in 1:(n/2)){
+for(j in 1:floor(n/2)){
   a=sqrt(2/n)*sum(cos(2*pi*j*(1:n)/n)*r1)
   b=sqrt(2/n)*sum(sin(2*pi*j*(1:n)/n)*r1)
   fft1=c(fft1, a, b)
 }
-v1=var(fft1[floor(n/4):n])        #sigma^2
-T1=NULL
-for(m in 1:n){
-  t=(2*m*v1^2)^(-0.5)*sum((fft1[1:m])^2-v1)
-  T1=c(T1,t)
+v1=var(fft1[floor(n/4):length(fft1)])        #sigma^2
+fft2=NULL
+for(j in 1:floor(n/2)){
+  a=sqrt(2/n)*sum(cos(2*pi*j*(1:n)/n)*r2)
+  b=sqrt(2/n)*sum(sin(2*pi*j*(1:n)/n)*r2)
+  fft2=c(fft2, a, b)
 }
-T1n=sqrt(2*log(log(n)))*max(T1)-2*log(log(n))-0.5*log(log(log(n)))+0.5*log(4*pi) 
-#######select m1
-gBIC=1:10
-for (j in 1:10){
-  y11=lm(y1~0+zz[,1:(1+2*j)])$residuals
-  RX1=matrix(1,nrow=n,ncol=n-1)
-  for(i in 1:(n-1)){
-    RX1[,i]=lm(x1[,(i+1)]~0+zz[,1:(1+2*j)])$residuals
-  }
-  model3=lars(RX1,y=y11,type="lasso", normalize = FALSE, intercept = FALSE, trace = FALSE, max.steps=66)
-  gBIC[j]=min(log(model3$RSS/n) + log(n)*(model3$df+2*j)*2*log(log(n))/n)
+v2=var(fft2[floor(n/4):length(fft2)])        #sigma^2
+fft3=NULL
+for(j in 1:floor(n/2)){
+  a=sqrt(2/n)*sum(cos(2*pi*j*(1:n)/n)*r3)
+  b=sqrt(2/n)*sum(sin(2*pi*j*(1:n)/n)*r3)
+  fft3=c(fft3, a, b)
 }
-m1=which.min(gBIC)
-#######partial penalized with selected m1
-yy1=lm(y1~0+zz[,1:(1+2*m1)])$residuals
-RRX1=matrix(1,nrow=n,ncol=n-1)
-for(i in 1:(n-1)){
-  RRX1[,i]=lm(x1[,(i+1)]~0+zz[,1:(1+2*m1)])$residuals
+v3=var(fft3[floor(n/4):length(fft3)])        #sigma^2
+T=NULL
+for(m in 1:length(fft1)){
+  t=sqrt((sum((fft1[1:m])^2-v1)/sqrt(2*m*v1^2))^2+(sum((fft2[1:m])^2-v2)/sqrt(2*m*v2^2))^2+(sum((fft3[1:m])^2-v3)/sqrt(2*m*v3^2))^2)
+  T=c(T,t)
 }
-model2<-lars(RRX1,y=yy1,type="lasso", normalize = FALSE, intercept = FALSE, trace = FALSE, max.steps=66)
-n4=which.min(log(model2$RSS/n) + log(n)*model2$df*2*log(log(n))/n)                
-sub=which(diff(sort(abs(unlist(model2$actions)[1:n4])))<=2)
-loc1=sort(abs(unlist(model2$actions)[1:n4]))[-sub]
-num1[4]=length(loc1)
+T1n=sqrt(2*log(log(n)))*max(T)-2*log(log(n))-2*log(log(log(n)))+log(gamma(2)) 
 
-#####2nd sequence  
-y2=data[,2]
+#####Chro 22               
+n=ncol(yy)
+d=nrow(yy)
+x=1:n
+y[which(abs(yy)>1.5)]=NA     #delete outliers
+for (i in 1:d) {yy[i,]=na_ma(yy[i,],k=5,weighting="linear")}        #imputation
+h=10
 num2=1:4
 #####CBS
-CBS=DNAcopy::segment(CNA(y2, rep(1,n), 1:n))                
-num2[1]=length(CBS$output[,4])-1
-######cumSeg
-num2[2]=jumpoints(y2,k=66,output="2")$n.psi
-######LB
-model1<-lars(x1[,2:n], y =y2, type ="lasso", normalize = FALSE, intercept = TRUE, trace = FALSE, max.steps=66)   
-n3=which.min(log(model1$RSS/n) + log(n)*model1$df*2*log(log(n))/n)
-num2[3]=n3-sum(diff(sort(abs(unlist(model1$actions)[1:n3])))<=2)
+set.seed(2)
+CBS=DNAcopy::segment(CNA(t(yy), chrom=rep(1,n), maploc=1:n))
+Estimate1=sort(unique(CBS$output[,4]))
+Estimate1=Estimate1[-length(Estimate1)]                
+num2[1]=length(Estimate1)
+######SaRa
+sara=MultiScan(yy,h=10)
+thres=threshold(yy,alpha=0.1,h=10)
+Estimate2=sara$index[which(sara$S.index.>thres)]
+num2[2]=length(Estimate2)
+######group Lasso
+y0=as.vector(yy)
+x1=matrix(1,nrow=n,ncol=n)
+for(i in 1:(n-1))
+  x1[i,(i+1):n]=0            
+X=kronecker(x1,diag(1, d))                          #contain intercept
+group=NULL
+for (i in 1:n)
+  group<-c(group,rep(i-1,d))                        #contain intercept    
+model1=grpreg(X=X[,2:length(y0)], y=y0, group=group[2:length(y0)], penalty="grLasso",family="gaussian", gmax=10)  
+loss=NULL    #residual sum of squares
+for(i in 1:length(model1$lambda)){
+  loss=c(loss, sum(residuals(model1, lambda=model1$lambda[i])^2))
+}
+opt=which.min(log(loss/length(y0)) + log(length(y0))*model1$df*0.4*log(log(length(y0)))/length(y0))    
+Estimate3=as.vector((which(model1$beta[,opt]!=0)[d*(1:(length(which(model1$beta[,opt]!=0))/d))]/d-1)[-1])     
+if(length(which(diff(Estimate3)<5))>0){Estimate33=Estimate3[-which(diff(Estimate3)<5)]} else{Estimate33=Estimate3}     
+num2[3]=length(Estimate33)
+rm(model1)
+#######partial penalized with m=5
+z=matrix(1,nrow=n,ncol=11)                     
+for (i in 1:5){
+  z[,(2*i)]=cos(2*pi*i*x/n)
+  z[,(2*i+1)]=sin(2*pi*i*x/n)             
+}
+Z=kronecker(z[,2:11],diag(1, d))
+X=cbind(X,Z)
+group=c(group, rep(0,(10*d)))
+model1<-grpreg(X=X[,-1], y=y0, group=group[-1], penalty="grLasso",family="gaussian", gmax=10)
+loss=NULL    #residual sum of squares
+for(i in 1:length(model1$lambda)){
+  loss=c(loss, sum(residuals(model1, lambda=model1$lambda[i])^2))
+}
+opt=which.min(log(loss/length(y0)) + log(length(y0))*model1$df*0.4*log(log(length(y0)))/length(y0))    
+Estimate4=as.vector((which(model1$beta[1:(d*n),opt]!=0)[d*(1:(length(which(model1$beta[1:(d*n),opt]!=0))/d))]/d-1)[-1])     
+if(length(which(diff(Estimate4)<5))>0){Estimate44=Estimate4[-which(diff(Estimate4)<5)]} else{Estimate44=Estimate4}        
+num2[4]=length(Estimate44)
+rm(model1)
 ######adaptive Neyman test 
-sub=which(diff(sort(abs(unlist(model1$actions))))<2)
-r1=lm(y2~x1[,which(model1$entry>0)[-sub]+1])$residuals 
-#Adaptive Neyman test
+r1=lm(yy[1,]~x1[,(Estimate3+1)])$residuals
+r2=lm(yy[2,]~x1[,(Estimate3+1)])$residuals
+r3=lm(yy[3,]~x1[,(Estimate3+1)])$residuals
+#Fourier transform
 fft1=NULL
-for(j in 1:(n/2)){
+for(j in 1:floor(n/2)){
   a=sqrt(2/n)*sum(cos(2*pi*j*(1:n)/n)*r1)
   b=sqrt(2/n)*sum(sin(2*pi*j*(1:n)/n)*r1)
   fft1=c(fft1, a, b)
 }
-v1=var(fft1[floor(n/4):n])        #sigma^2
-T1=NULL
-for(m in 1:n){
-  t=(2*m*v1^2)^(-0.5)*sum((fft1[1:m])^2-v1)
-  T1=c(T1,t)
+v1=var(fft1[floor(n/4):length(fft1)])        #sigma^2
+fft2=NULL
+for(j in 1:floor(n/2)){
+  a=sqrt(2/n)*sum(cos(2*pi*j*(1:n)/n)*r2)
+  b=sqrt(2/n)*sum(sin(2*pi*j*(1:n)/n)*r2)
+  fft2=c(fft2, a, b)
 }
-T2n=sqrt(2*log(log(n)))*max(T1)-2*log(log(n))-0.5*log(log(log(n)))+0.5*log(4*pi) 
-#######select m2
-gBIC=1:10
-for (j in 1:10){
-  y22=lm(y2~0+zz[,1:(1+2*j)])$residuals
-  RX1=matrix(1,nrow=n,ncol=n-1)
-  for(i in 1:(n-1)){
-    RX1[,i]=lm(x1[,(i+1)]~0+zz[,1:(1+2*j)])$residuals
-  }
-  model3=lars(RX1,y=y22,type="lasso", normalize = FALSE, intercept = FALSE, trace = FALSE, max.steps=66)
-  gBIC[j]=min(log(model3$RSS/n) + log(n)*(model3$df+2*j)*2*log(log(n))/n)
+v2=var(fft2[floor(n/4):length(fft2)])        #sigma^2
+fft3=NULL
+for(j in 1:floor(n/2)){
+  a=sqrt(2/n)*sum(cos(2*pi*j*(1:n)/n)*r3)
+  b=sqrt(2/n)*sum(sin(2*pi*j*(1:n)/n)*r3)
+  fft3=c(fft3, a, b)
 }
-m2=which.min(gBIC)
-#######partial penalized with selected m2
-yy2=lm(y2~0+zz[,1:(1+2*m2)])$residuals
-RRX1=matrix(1,nrow=n,ncol=n-1)
-for(i in 1:(n-1)){
-  RRX1[,i]=lm(x1[,(i+1)]~0+zz[,1:(1+2*m2)])$residuals
+v3=var(fft3[floor(n/4):length(fft3)])        #sigma^2
+T=NULL
+for(m in 1:length(fft1)){
+  t=sqrt((sum((fft1[1:m])^2-v1)/sqrt(2*m*v1^2))^2+(sum((fft2[1:m])^2-v2)/sqrt(2*m*v2^2))^2+(sum((fft3[1:m])^2-v3)/sqrt(2*m*v3^2))^2)
+  T=c(T,t)
 }
-model2<-lars(RRX1,y=yy2,type="lasso", normalize = FALSE, intercept = FALSE, trace = FALSE, max.steps=66)
-n4=which.min(log(model2$RSS/n) + log(n)*model2$df*2*log(log(n))/n)
-sub=which(diff(sort(abs(unlist(model2$actions)[1:n4])))<=2)
-loc2=sort(abs(unlist(model2$actions)[1:n4]))[-sub]
-num2[4]=length(loc2)
+T2n=sqrt(2*log(log(n)))*max(T)-2*log(log(n))-2*log(log(log(n)))+log(gamma(2)) 
 
-#####3nd sequence  
-y3=data[,3]
-num3=1:4
-#####CBS
-CBS=DNAcopy::segment(CNA(y3, rep(1,n), 1:n))                
-num3[1]=length(CBS$output[,4])-1
-######cumSeg
-num3[2]=jumpoints(y3,k=66,output="2")$n.psi
-######LB
-model1<-lars(x1[,2:n], y =y3, type ="lasso", normalize = FALSE, intercept = TRUE, trace = FALSE, max.steps=66)   
-n3=which.min(log(model1$RSS/n) + log(n)*model1$df*2*log(log(n))/n)
-num3[3]=n3-sum(diff(sort(abs(unlist(model1$actions)[1:n3])))<=2)
-######adaptive Neyman test 
-sub=which(diff(sort(abs(unlist(model1$actions))))<2)
-r1=lm(y3~x1[,which(model1$entry>0)[-sub]+1])$residuals 
-#Adaptive Neyman test
-fft1=NULL
-for(j in 1:(n/2)){
-  a=sqrt(2/n)*sum(cos(2*pi*j*(1:n)/n)*r1)
-  b=sqrt(2/n)*sum(sin(2*pi*j*(1:n)/n)*r1)
-  fft1=c(fft1, a, b)
-}
-v1=var(fft1[floor(n/4):n])        #sigma^2
-T1=NULL
-for(m in 1:n){
-  t=(2*m*v1^2)^(-0.5)*sum((fft1[1:m])^2-v1)
-  T1=c(T1,t)
-}
-T3n=sqrt(2*log(log(n)))*max(T1)-2*log(log(n))-0.5*log(log(log(n)))+0.5*log(4*pi) 
-#######select m3
-gBIC=1:10
-for (j in 1:10){
-  y33=lm(y3~0+zz[,1:(1+2*j)])$residuals
-  RX1=matrix(1,nrow=n,ncol=n-1)
-  for(i in 1:(n-1)){
-    RX1[,i]=lm(x1[,(i+1)]~0+zz[,1:(1+2*j)])$residuals
-  }
-  model3=lars(RX1,y=y33,type="lasso", normalize = FALSE, intercept = FALSE, trace = FALSE, max.steps=66)
-  gBIC[j]=min(log(model3$RSS/n) + log(n)*(model3$df+2*j)*2*log(log(n))/n)
-}
-m3=which.min(gBIC)
-#######partial penalized with selected m3
-yy3=lm(y3~0+zz[,1:(1+2*m3)])$residuals
-RRX1=matrix(1,nrow=n,ncol=n-1)
-for(i in 1:(n-1)){
-  RRX1[,i]=lm(x1[,(i+1)]~0+zz[,1:(1+2*m3)])$residuals
-}
-model2<-lars(RRX1,y=yy3,type="lasso", normalize = FALSE, intercept = FALSE, trace = FALSE, max.steps=66)
-n4=which.min(log(model2$RSS/n) + log(n)*model2$df*2*log(log(n))/n)
-sub=which(diff(sort(abs(unlist(model2$actions)[1:n4])))<=2)
-loc3=sort(abs(unlist(model2$actions)[1:n4]))[-sub]
-num3[4]=length(loc3)
-
-#####4nd sequence  
-y4=data[,4]
-num4=1:4
-#####CBS
-CBS=DNAcopy::segment(CNA(y4, rep(1,n), 1:n))                
-num4[1]=length(CBS$output[,4])-1
-######cumSeg
-num4[2]=jumpoints(y4,k=66,output="2")$n.psi
-######LB
-model1<-lars(x1[,2:n], y =y4, type ="lasso", normalize = FALSE, intercept = TRUE, trace = FALSE, max.steps=66)   
-n3=which.min(log(model1$RSS/n) + log(n)*model1$df*2*log(log(n))/n)   
-num4[3]=n3-sum(diff(sort(abs(unlist(model1$actions)[1:n3])))<=2)
-######adaptive Neyman test 
-sub=which(diff(sort(abs(unlist(model1$actions))))<2)
-r1=lm(y4~x1[,which(model1$entry>0)[-sub]+1])$residuals 
-#Adaptive Neyman test
-fft1=NULL
-for(j in 1:(n/2)){
-  a=sqrt(2/n)*sum(cos(2*pi*j*(1:n)/n)*r1)
-  b=sqrt(2/n)*sum(sin(2*pi*j*(1:n)/n)*r1)
-  fft1=c(fft1, a, b)
-}
-v1=var(fft1[floor(n/4):n])        #sigma^2
-T1=NULL
-for(m in 1:n){
-  t=(2*m*v1^2)^(-0.5)*sum((fft1[1:m])^2-v1)
-  T1=c(T1,t)
-}
-T4n=sqrt(2*log(log(n)))*max(T1)-2*log(log(n))-0.5*log(log(log(n)))+0.5*log(4*pi) 
-#######select m4
-gBIC=1:10
-for (j in 1:10){
-  y44=lm(y4~0+zz[,1:(1+2*j)])$residuals
-  RX1=matrix(1,nrow=n,ncol=n-1)
-  for(i in 1:(n-1)){
-    RX1[,i]=lm(x1[,(i+1)]~0+zz[,1:(1+2*j)])$residuals
-  }
-  model3=lars(RX1,y=y44,type="lasso", normalize = FALSE, intercept = FALSE, trace = FALSE, max.steps=66)
-  gBIC[j]=min(log(model3$RSS/n) + log(n)*(model3$df+2*j)*2*log(log(n))/n)
-}
-m4=which.min(gBIC)
-#######partial penalized with selected m4
-yy4=lm(y4~0+zz[,1:(1+2*m4)])$residuals
-RRX1=matrix(1,nrow=n,ncol=n-1)
-for(i in 1:(n-1)){
-  RRX1[,i]=lm(x1[,(i+1)]~0+zz[,1:(1+2*m4)])$residuals
-}
-model2<-lars(RRX1,y=yy4,type="lasso", normalize = FALSE, intercept = FALSE, trace = FALSE, max.steps=66)
-n4=which.min(log(model2$RSS/n) + log(n)*model2$df*2*log(log(n))/n)
-sub=which(diff(sort(abs(unlist(model2$actions)[1:n4])))<=2)
-loc4=sort(abs(unlist(model2$actions)[1:n4]))[-sub]
-num4[4]=length(loc4)
-
-
-#####show Table 
-rbind(c(num1,T1n),c(num2,T2n),c(num3,T3n),c(num4,T4n))      
-
-
-#####show Figure
-par(mfrow=c(1,2))
-plot(y3[1:500], x=1:500, xlab="locations", ylab="Log 2 ratio", main="X506",pch=20,col=8)
-lines(lm(y3~0+zz[,1:(1+2*m3)]+x1[,(loc3+1)])$fitted.values[1:500],x=1:500,col=2,lwd=2)
-plot(y4[1:500], x=1:500, xlab="locations", ylab="Log 2 ratio", main="X2259-1",pch=20,col=8)
-lines(lm(y4~0+zz[,1:(1+2*m4)]+x1[,(loc4+1)])$fitted.values[1:500],x=1:500,col=2,lwd=2)
-m=max(c(m1,m2,m3,m4))
-ZZ=kronecker(zz[,2:(1+2*m)],diag(1, d))
-XX=cbind(X,ZZ)
-Group=c(group, rep(0,(2*m*d)))
-y0=as.vector(t(data))
-model4=grpreg(X=XX[,-1], y=y0, group=Group[-1], penalty="grLasso",family="gaussian", gmax=66)     #group lasso
-nonzero=as.vector(which(model4$beta[1:(n*d),length(model4$lambda)]!=0))
-sub=which(diff(nonzero[4*(2:(length(nonzero)/4))]/4)<=15)
-loc=(nonzero[4*(2:(length(nonzero)/4))]/4)[-sub]
-par(mfrow=c(4,1))
-plot(y1, x=1:n, xlab="locations", ylab="Log 2 ratio", main="X1410",pch=20,col=8)
-lines(lm(y1~0+zz[,1:(1+2*m1)]+x1[,(loc1+1)])$fitted.values,x=1:n,col=2)
-abline(v=loc, lty=2)
-plot(y2, x=1:n, xlab="locations", ylab="Log 2 ratio", ylim=c(-1,3), main="X1533-1",pch=20,col=8)
-lines(lm(y2~0+zz[,1:(1+2*m2)]+x1[,(loc2+1)])$fitted.values,x=1:n,col=2)
-abline(v=loc, lty=2)
-plot(y3, x=1:n, xlab="locations", ylab="Log 2 ratio", main="X506",pch=20,col=8)
-lines(lm(y3~0+zz[,1:(1+2*m3)]+x1[,(loc3+1)])$fitted.values,x=1:n,col=2)
-abline(v=loc, lty=2)
-plot(y4, x=1:n, xlab="locations", ylab="Log 2 ratio", main="X2259-1",pch=20,col=8)
-lines(lm(y4~0+zz[,1:(1+2*m4)]+x1[,(loc4+1)])$fitted.values,x=1:n,col=2)
-abline(v=loc, lty=2)
+#####show results
+rbind(c(num1,T1n),c(num2,T2n))
