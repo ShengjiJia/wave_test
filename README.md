@@ -10,12 +10,12 @@ Code
 
 'Simulation3.R' is the R code for Simulation 3 (Figure 3 and Table 2) in the paper.
 
-'RealData.R' is the R code for bladder tumor aCGH data analysis (Table 3, Figure 4 and Figure 5) in the paper.
+'RealData.R' is the R code for SNP genotyping aCGH data analysis (Table 3) in the paper.
 
-'RealDataSupp.R' is the R code for SNP data analysis (Table 3, Figure 4 and Figure 5) in the supplementary material.
+'RealDataSupp.R' is the R code for bladder tumor aCGH data analysis in the supplementary material.
 
 Data
 
-'CGHdataset' is the bladder tumor aCGH data used in 'RealData.R' file.
+'SNPdata.7z' is the SNP data used in 'RealData.R' file.
 
-'SNPdata.7z' is the SNP data used in 'RealDataSupp.R' file.
+'CGHdataset' is the bladder tumor aCGH data used in 'RealDataSupp.R' file.
