@@ -10,6 +10,8 @@ Code
 
 'Simulation3.R' is the R code for Simulation 3 (Figure 3 and Table 2) in the paper.
 
+'Simulation4.R' is the R code for an additional simulation in the supplementary material.
+
 'RealData.R' is the R code for SNP genotyping data analysis (Table 3) in the paper.
 
 'RealDataSupp.R' is the R code for bladder tumor aCGH data analysis in the supplementary material.
